@@ -72,6 +72,12 @@ public:
 
 	virtual void print_run_status() const;
 
+	void reset_statistics()
+	{
+		_run_count = 0;
+		_time_first_run = 0;
+	}
+
 	/**
 	 * Switch to a different WorkQueue.
 	 * NOTE: Caller is responsible for synchronization.
@@ -95,7 +101,6 @@ protected:
 	 * Remove work item from the runnable queue, if it's there
 	 */
 	void ScheduleClear();
-protected:
 
 	void RunPreamble()
 	{

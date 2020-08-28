@@ -188,6 +188,10 @@ void WorkQueue::print_status(bool last)
 		}
 
 		item->print_run_status();
+
+		work_lock();
+		item->reset_statistics();
+		work_unlock();
 	}
 }
 
