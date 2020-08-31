@@ -1628,8 +1628,6 @@ Commander::run()
 			}
 		}
 
-		estimator_check(status_flags);
-
 		/* Update land detector */
 		if (_land_detector_sub.updated()) {
 			_was_landed = _land_detector.landed;
@@ -1643,6 +1641,9 @@ Commander::run()
 
 					} else {
 						mavlink_log_info(&mavlink_log_pub, "Takeoff detected");
+
+						// record time of takeoff
+						_time_at_takeoff = hrt_absolute_time();
 						_have_taken_off_since_arming = true;
 
 						// Set all position and velocity test probation durations to takeoff value
@@ -1656,6 +1657,7 @@ Commander::run()
 			}
 		}
 
+		estimator_check(status_flags);
 
 		// Auto disarm when landed or kill switch engaged
 		if (armed.armed) {
@@ -2225,10 +2227,9 @@ Commander::run()
 			}
 		}
 
-		/* Check for failure detector status */
-		const bool failure_detector_updated = _failure_detector.update(status);
 
-		if (failure_detector_updated) {
+		/* Check for failure detector status */
+		if (_failure_detector.update(status)) {
 
 			const uint8_t failure_status = _failure_detector.getStatus();
 
@@ -2236,24 +2237,16 @@ Commander::run()
 				status.failure_detector_status = failure_status;
 				_status_changed = true;
 			}
-		}
 
-		if (armed.armed &&
-		    failure_detector_updated) {
+			if (armed.armed && _failure_detector.isFailure()) {
 
-			if (_failure_detector.isFailure()) {
-
-				const hrt_abstime time_at_arm = armed.armed_time_ms * 1000;
-
-				if (hrt_elapsed_time(&time_at_arm) < 500_ms) {
-					// 500ms is the PWM spoolup time. Within this timeframe controllers are not affecting actuator_outputs
-
+				if (hrt_elapsed_time(&armed.armed_time) < 500_ms) {
+					// 500ms is the PWM spoolup time. Within this timeframe controllers are not affecting actuator_output
 					if (status.failure_detector_status & vehicle_status_s::FAILURE_ARM_ESC) {
 						arm_disarm(false, true, &mavlink_log_pub, arm_disarm_reason_t::FAILURE_DETECTOR);
 						_status_changed = true;
 						mavlink_log_critical(&mavlink_log_pub, "ESCs did not respond to arm request");
 					}
-
 				}
 
 				if (hrt_elapsed_time(&_time_at_takeoff) < (1_s * _param_com_lkdown_tko.get())) {
@@ -2266,16 +2259,19 @@ Commander::run()
 
 						mavlink_log_emergency(&mavlink_log_pub, "Critical failure detected: lockdown");
 					}
+				}
 
-				} else if (!status_flags.circuit_breaker_flight_termination_disabled &&
-					   !_flight_termination_triggered && !_lockdown_triggered) {
+				if (status.failure_detector_status & (FAILURE_ROLL | FAILURE_PITCH | FAILURE_ALT | FAILURE_EXT)) {
+					if (!status_flags.circuit_breaker_flight_termination_disabled &&
+					    !_flight_termination_triggered && !_lockdown_triggered) {
 
-					armed.force_failsafe = true;
-					_flight_termination_triggered = true;
-					_status_changed = true;
+						armed.force_failsafe = true;
+						_flight_termination_triggered = true;
+						_status_changed = true;
 
-					mavlink_log_emergency(&mavlink_log_pub, "Critical failure detected: terminate flight");
-					set_tune_override(TONE_PARACHUTE_RELEASE_TUNE);
+						mavlink_log_emergency(&mavlink_log_pub, "Critical failure detected: terminate flight");
+						set_tune_override(TONE_PARACHUTE_RELEASE_TUNE);
+					}
 				}
 			}
 		}
@@ -4116,13 +4112,8 @@ void Commander::estimator_check(const vehicle_status_flags_s &vstatus_flags)
 
 			if (status.arming_state == vehicle_status_s::ARMING_STATE_STANDBY) {
 				// reset flags and timer
-				_time_at_takeoff = hrt_absolute_time();
 				_nav_test_failed = false;
 				_nav_test_passed = false;
-
-			} else if (_land_detector.landed) {
-				// record time of takeoff
-				_time_at_takeoff = hrt_absolute_time();
 
 			} else {
 				// if nav status is unconfirmed, confirm yaw angle as passed after 30 seconds or achieving 5 m/s of speed
