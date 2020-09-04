@@ -78,7 +78,10 @@ bool EKF2Selector::SelectInstance(uint8_t ekf_instance, bool force_reselect)
 		_instance_changed_count++;
 		_last_instance_change = hrt_absolute_time();
 		_instance[_selected_instance].time_last_selected = _last_instance_change;
-		_instance[_selected_instance].relative_test_ratio = 0;
+
+		for (auto &inst : _instance) {
+			inst.relative_test_ratio = 0;
+		}
 
 		// handle resets on change
 
