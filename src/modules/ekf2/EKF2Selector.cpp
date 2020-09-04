@@ -283,34 +283,9 @@ void EKF2Selector::Run()
 		}
 	}
 
-	if (lower_error_available) {
-		SelectInstance(best_ekf_instance);
+	if ((_selected_instance == UINT8_MAX)
+	    || (!_instance[_selected_instance].healthy && (best_ekf_instance == _selected_instance))) {
 
-	} else {
-		// force initial selection
-		if ((_selected_instance == UINT8_MAX) || !_instance[_selected_instance].healthy) {
-			// find new best instance if we don't have one from relative test ratios
-			if (best_ekf_instance == _selected_instance) {
-				float best_test_ratio = FLT_MAX;
-
-				// find lowest combined test ratio from a healthy instance
-				for (int i = 0; i < _available_instances; i++) {
-					if (_instance[i].healthy) {
-						const float test_ratio = _instance[i].combined_test_ratio;
-
-						if ((test_ratio > 0) && (test_ratio < best_test_ratio)) {
-							best_ekf_instance = i;
-							best_test_ratio = test_ratio;
-						}
-					}
-				}
-			}
-
-			SelectInstance(best_ekf_instance);
-		}
-	}
-
-	if (_selected_instance == UINT8_MAX) {
 		// force initial selection
 		uint8_t best_instance = _selected_instance;
 		float best_test_ratio = FLT_MAX;
