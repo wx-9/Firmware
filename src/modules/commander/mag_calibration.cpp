@@ -882,7 +882,11 @@ calibrate_return mag_calibrate_all(orb_advert_t *mavlink_log_pub, int32_t cal_ma
 			}
 
 			current_cal.set_calibration_index(cur_mag);
-			current_cal.ParametersSave();
+
+			if (!current_cal.ParametersSave()) {
+				calibration_log_critical(mavlink_log_pub, "calibration save failed");
+				return calibrate_return_error;
+			}
 		}
 
 		// reset the learned EKF mag in-flight bias offsets which have been learned for the previous
