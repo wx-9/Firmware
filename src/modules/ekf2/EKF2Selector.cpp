@@ -326,9 +326,12 @@ void EKF2Selector::Run()
 		SelectInstance(best_instance);
 
 	} else if (best_ekf_instance != _selected_instance) {
-		// if this instance has a significantly lower relative error to the active primary, we consider it as a
+		//  if this instance has a significantly lower relative error to the active primary, we consider it as a
 		// better instance and would like to switch to it even if the current primary is healthy
-		if (lower_error_available || !_instance[_selected_instance].healthy) {
+		//  switch immediately if the current selected is no longer healthy
+		if ((lower_error_available && hrt_elapsed_time(&_last_instance_change) > 10_s)
+		    || !_instance[_selected_instance].healthy) {
+
 			SelectInstance(best_ekf_instance);
 		}
 	}
@@ -437,7 +440,9 @@ void EKF2Selector::Run()
 		selector_status.last_instance_change = _last_instance_change;
 
 		for (int i = 0; i < _available_instances; i++) {
-			selector_status.combined_error[i] = _instance[i].combined_test_ratio;
+			selector_status.combined_test_ratio[i] = _instance[i].combined_test_ratio;
+			selector_status.relative_test_ratio[i] = _instance[i].relative_test_ratio;
+			selector_status.healthy[i] = _instance[i].healthy;
 		}
 
 		selector_status.timestamp = hrt_absolute_time();
