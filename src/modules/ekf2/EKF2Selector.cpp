@@ -215,8 +215,7 @@ void EKF2Selector::updateErrorScores()
 				const float error_delta = _instance[i].combined_test_ratio - _instance[_selected_instance].combined_test_ratio;
 
 				// reduce error only if its better than the primary instance by at least _err_reduce_thresh to prevent unnecessary selection changes
-				//if (error_delta > 0 || error_delta < -fmaxf(_err_reduce_thresh, 0.05f)) {
-				if (error_delta > 0 || (error_delta < -0.00005f)) {
+				if (error_delta > 0 || error_delta < -fmaxf(_err_reduce_thresh, 0.05f)) {
 					_instance[i].relative_test_ratio += error_delta;
 					_instance[i].relative_test_ratio = math::constrain(_instance[i].relative_test_ratio, -_rel_err_score_lim,
 									   _rel_err_score_lim);
